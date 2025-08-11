@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { ZodError } from 'zod';
 import connectDB from '@/lib/mongodb';
 import Appointment from '@/models/Appointment';
 import { appointmentUpdateSchema } from '@/lib/validations';
@@ -56,8 +57,8 @@ export async function PATCH(
       message: 'Appointment updated successfully',
       appointment 
     });
-  } catch (error: any) {
-    if (error.name === 'ZodError') {
+  } catch (error: unknown) {
+    if (error instanceof ZodError) {
       return NextResponse.json(
         { error: 'Validation error', details: error.errors },
         { status: 400 }

@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { ZodError } from 'zod';
 import connectDB from '@/lib/mongodb';
 import Appointment from '@/models/Appointment';
 import { appointmentSchema } from '@/lib/validations';
@@ -47,8 +48,8 @@ export async function POST(request: NextRequest) {
       },
       { status: 201 }
     );
-  } catch (error: any) {
-    if (error.name === 'ZodError') {
+  } catch (error: unknown) {
+    if (error instanceof ZodError) {
       return NextResponse.json(
         { error: 'Validation error', details: error.errors },
         { status: 400 }
@@ -72,7 +73,7 @@ export async function GET(request: NextRequest) {
     const date = searchParams.get('date');
     const availableSlots = searchParams.get('availableSlots');
     
-    let query: any = {};
+    const query: Record<string, any> = {};
     
     if (status) {
       query.status = status;

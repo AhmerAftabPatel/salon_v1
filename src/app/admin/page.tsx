@@ -1,9 +1,9 @@
 'use client';
 
-import { useState, useEffect } from 'react';
-import { Calendar, Clock, User, Phone, Mail, Edit, Trash2, Filter, MapPin, ArrowLeft, Check, X, Menu, X as CloseIcon } from 'lucide-react';
+import { useState, useEffect, useCallback } from 'react';
+import { Calendar, Clock, Phone, Mail, Edit, Trash2, MapPin, Check, X, Menu, X as CloseIcon } from 'lucide-react';
 import Link from 'next/link';
-import { formatCentralTime, formatTime, CENTRAL_TIMEZONE, getCurrentCentralTime, isTodayCentral } from '@/lib/timezone';
+import { formatCentralTime, formatTime, getCurrentCentralTime } from '@/lib/timezone';
 
 interface Appointment {
   _id: string;
@@ -46,11 +46,7 @@ export default function AdminPanel() {
     }
   }, [activeTab, todayStr]);
 
-  useEffect(() => {
-    fetchAppointments();
-  }, [filter, dateFilter, activeTab]);
-
-  const fetchAppointments = async () => {
+  const fetchAppointments = useCallback(async () => {
     try {
       let url = '/api/appointments';
       const params = new URLSearchParams();
@@ -80,7 +76,11 @@ export default function AdminPanel() {
     } finally {
       setLoading(false);
     }
-  };
+  }, [filter, dateFilter]);
+
+  useEffect(() => {
+    fetchAppointments();
+  }, [fetchAppointments]);
 
   const updateAppointment = async (id: string) => {
     try {
