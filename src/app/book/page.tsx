@@ -221,7 +221,7 @@ export default function BookAppointment() {
                 type="text"
                 id="name"
                 {...register('name')}
-                className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-purple-500 focus:border-purple-500"
+                className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-purple-500 focus:border-purple-500 text-black"
                 placeholder="Enter your full name"
               />
               {errors.name && (
@@ -239,7 +239,7 @@ export default function BookAppointment() {
                 type="tel"
                 id="phoneNumber"
                 {...register('phoneNumber')}
-                className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-purple-500 focus:border-purple-500"
+                className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-purple-500 focus:border-purple-500 text-black"
                 placeholder="Enter your phone number"
               />
               {errors.phoneNumber && (
@@ -257,7 +257,7 @@ export default function BookAppointment() {
                 type="email"
                 id="email"
                 {...register('email')}
-                className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-purple-500 focus:border-purple-500"
+                className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-purple-500 focus:border-purple-500 text-black"
                 placeholder="Enter your email address"
               />
               {errors.email && (
@@ -277,7 +277,7 @@ export default function BookAppointment() {
                 {...register('date', { valueAsDate: true })}
                 min={formatCentralTime(getMinBookingDate(), 'yyyy-MM-dd')}
                 max={formatCentralTime(new Date(Date.now() + 24 * 60 * 60 * 1000), 'yyyy-MM-dd')}
-                className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-purple-500 focus:border-purple-500"
+                className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-purple-500 focus:border-purple-500 text-black"
               />
               {errors.date && (
                 <p className="mt-1 text-sm text-red-600">{errors.date.message}</p>
@@ -296,7 +296,7 @@ export default function BookAppointment() {
               <select
                 id="time"
                 {...register('time')}
-                className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-purple-500 focus:border-purple-500"
+                className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-purple-500 focus:border-purple-500 text-black"
               >
                 <option value="">Select a time slot</option>
                 {availableSlots.map((time) => {
@@ -335,7 +335,7 @@ export default function BookAppointment() {
                 id="notes"
                 {...register('notes')}
                 rows={3}
-                className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-purple-500 focus:border-purple-500"
+                className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-purple-500 focus:border-purple-500 text-black"
                 placeholder="Any special requests or notes..."
               />
               {errors.notes && (
