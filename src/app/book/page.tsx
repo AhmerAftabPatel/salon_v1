@@ -7,16 +7,12 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import { appointmentSchema, type AppointmentFormData } from '@/lib/validations';
 import { 
   getMinBookingDate, 
-  getMaxBookingDate, 
-  getAvailableTimeSlots,
   getAvailableTimeSlotsForDate,
   formatCentralTime,
   getCurrentCentralTime,
-  isTodayCentral,
-  CENTRAL_TIMEZONE 
+  isTodayCentral
 } from '@/lib/timezone';
-import { Calendar, Clock, User, Phone, Mail, ArrowLeft, MapPin, X } from 'lucide-react';
-import Link from 'next/link';
+import { Calendar, Clock, User, Phone, Mail, MapPin } from 'lucide-react';
 
 // Type for booked slot data
 interface BookedSlot {
@@ -74,7 +70,6 @@ export default function BookAppointment() {
     handleSubmit,
     formState: { errors },
     watch,
-    setValue,
     reset
   } = useForm<AppointmentFormData>({
     resolver: zodResolver(appointmentSchema),
@@ -169,6 +164,7 @@ export default function BookAppointment() {
         });
       }
     } catch (error) {
+      console.log(error);
       setSubmitMessage({
         type: 'error',
         message: 'An error occurred. Please try again.'
@@ -195,7 +191,7 @@ export default function BookAppointment() {
           {/* Timezone Info */}
           <div className="mt-4 flex items-center text-sm text-gray-500">
             <MapPin className="h-4 w-4 mr-2" />
-            All times are in Central Time ({CENTRAL_TIMEZONE})
+            All times are in Central Time (CT)
           </div>
           
           {/* Current Time */}

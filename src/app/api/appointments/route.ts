@@ -73,7 +73,7 @@ export async function GET(request: NextRequest) {
     const date = searchParams.get('date');
     const availableSlots = searchParams.get('availableSlots');
     
-    const query: Record<string, any> = {};
+    const query: Record<string, unknown> = {};
     
     if (status) {
       query.status = status;

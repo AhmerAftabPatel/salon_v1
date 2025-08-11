@@ -75,12 +75,14 @@ export async function PATCH(
 
 export async function DELETE(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
     await connectDB();
     
-    const appointment = await Appointment.findByIdAndDelete(params.id);
+    const { id } = await params;
+    
+    const appointment = await Appointment.findByIdAndDelete(id);
     
     if (!appointment) {
       return NextResponse.json(

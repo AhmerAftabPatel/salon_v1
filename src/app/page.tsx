@@ -1,5 +1,5 @@
 import Link from 'next/link';
-import { Calendar, Clock, Users, Settings } from 'lucide-react';
+import { Calendar, Clock, Users } from 'lucide-react';
 
 export default function Home() {
   return (
