@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { format } from 'date-fns';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
@@ -64,13 +64,15 @@ export default function BookAppointment() {
   const [availableSlots, setAvailableSlots] = useState<string[]>([]);
   const [selectedDate, setSelectedDate] = useState<string>('');
   const [currentTime, setCurrentTime] = useState<string>('');
+  const [isLoadingSlots, setIsLoadingSlots] = useState(false);
 
   const {
     register,
     handleSubmit,
     formState: { errors },
     watch,
-    reset
+    reset,
+    setValue
   } = useForm<AppointmentFormData>({
     resolver: zodResolver(appointmentSchema),
     defaultValues: {
@@ -81,6 +83,36 @@ export default function BookAppointment() {
   });
 
   const watchedDate = watch('date');
+
+  // Define fetchAvailableSlots function before using it in useEffect
+  const fetchAvailableSlots = useCallback(async (date: string) => {
+    setIsLoadingSlots(true);
+    try {
+      const response = await fetch(`/api/appointments?availableSlots=true&date=${date}`);
+      if (response.ok) {
+        const data = await response.json();
+        
+        const dateObj = new Date(date);
+        const allSlots = getAvailableTimeSlotsForDate(dateObj);
+        
+        const bookedSlots = data.bookedSlots || [];
+        
+        // Filter out confirmed and pending slots
+        const unavailableSlots = bookedSlots
+          .filter((slot: BookedSlot) => ['confirmed', 'pending'].includes(slot.status))
+          .map((slot: BookedSlot) => slot.time);
+        
+        const available = allSlots.filter(slot => !unavailableSlots.includes(slot));
+        
+        setAvailableSlots(available);
+      }
+    } catch {
+      const dateObj = new Date(date);
+      setAvailableSlots(getAvailableTimeSlotsForDate(dateObj));
+    } finally {
+      setIsLoadingSlots(false);
+    }
+  }, []); // Added useCallback dependency array
 
   // Update current time every minute
   useEffect(() => {
@@ -95,13 +127,32 @@ export default function BookAppointment() {
     return () => clearInterval(interval);
   }, []);
 
-  // Initialize available slots for the default date
+  // Set today's date as default and initialize available slots
   useEffect(() => {
-    const defaultDate = getMinBookingDate();
-    const dateStr = formatCentralTime(defaultDate, 'yyyy-MM-dd');
-    setSelectedDate(dateStr);
-    fetchAvailableSlots(dateStr);
-  }, []);
+    const today = getMinBookingDate();
+    const todayStr = formatCentralTime(today, 'yyyy-MM-dd');
+    
+    // Set the form value to today's date
+    setValue('date', today);
+    setSelectedDate(todayStr);
+    
+    // Fetch available slots for today
+    fetchAvailableSlots(todayStr);
+  }, [setValue, fetchAvailableSlots]); // Added fetchAvailableSlots to dependency array
+
+  // Refresh available slots periodically to keep them up-to-date
+  useEffect(() => {
+    if (selectedDate) {
+      const refreshSlots = () => {
+        fetchAvailableSlots(selectedDate);
+      };
+      
+      // Refresh every 30 seconds
+      const interval = setInterval(refreshSlots, 30000);
+      
+      return () => clearInterval(interval);
+    }
+  }, [selectedDate, fetchAvailableSlots]); // Added fetchAvailableSlots to dependency array
 
   // Fetch available time slots when date changes
   useEffect(() => {
@@ -110,37 +161,27 @@ export default function BookAppointment() {
       setSelectedDate(dateStr);
       fetchAvailableSlots(dateStr);
     }
-  }, [watchedDate]);
-
-  const fetchAvailableSlots = async (date: string) => {
-    try {
-      const response = await fetch(`/api/appointments?availableSlots=true&date=${date}`);
-      if (response.ok) {
-        const data = await response.json();
-        const dateObj = new Date(date);
-        const allSlots = getAvailableTimeSlotsForDate(dateObj);
-        const bookedSlots = data.bookedSlots || [];
-        
-        // Filter out confirmed and pending slots
-        const unavailableSlots = bookedSlots
-          .filter((slot: BookedSlot) => ['confirmed', 'pending'].includes(slot.status))
-          .map((slot: BookedSlot) => slot.time);
-        
-        const available = allSlots.filter(slot => !unavailableSlots.includes(slot));
-        setAvailableSlots(available);
-      }
-    } catch (error) {
-      console.error('Error fetching available slots:', error);
-      const dateObj = new Date(date);
-      setAvailableSlots(getAvailableTimeSlotsForDate(dateObj));
-    }
-  };
+  }, [watchedDate, fetchAvailableSlots]); // Added fetchAvailableSlots to dependency array
 
   const onSubmit = async (data: AppointmentFormData) => {
     setIsSubmitting(true);
     setSubmitMessage(null);
 
     try {
+      // Refresh available slots right before submission to ensure they're still available
+      const dateStr = formatCentralTime(data.date, 'yyyy-MM-dd');
+      await fetchAvailableSlots(dateStr);
+      
+      // Check if the selected time is still available
+      if (!availableSlots.includes(data.time)) {
+        setSubmitMessage({
+          type: 'error',
+          message: 'The selected time slot is no longer available. Please choose another time.'
+        });
+        setIsSubmitting(false);
+        return;
+      }
+
       const response = await fetch('/api/appointments', {
         method: 'POST',
         headers: {
@@ -154,9 +195,12 @@ export default function BookAppointment() {
       if (response.ok) {
         setShowSuccessModal(true);
         reset();
-        const defaultDate = getMinBookingDate();
-        const dateStr = formatCentralTime(defaultDate, 'yyyy-MM-dd');
-        fetchAvailableSlots(dateStr);
+        // Reset to today's date and refresh slots
+        const today = getMinBookingDate();
+        const todayStr = formatCentralTime(today, 'yyyy-MM-dd');
+        setValue('date', today);
+        setSelectedDate(todayStr);
+        fetchAvailableSlots(todayStr);
       } else {
         setSubmitMessage({
           type: 'error',
@@ -299,19 +343,23 @@ export default function BookAppointment() {
                 className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-purple-500 focus:border-purple-500 text-black"
               >
                 <option value="">Select a time slot</option>
-                {availableSlots.map((time) => {
-                  const [hours, minutes] = time.split(':');
-                  const hour = parseInt(hours);
-                  const ampm = hour >= 12 ? 'PM' : 'AM';
-                  const displayHour = hour > 12 ? hour - 12 : hour === 0 ? 12 : hour;
-                  const displayTime = `${displayHour}:${minutes} ${ampm}`;
-                  
-                  return (
-                    <option key={time} value={time}>
-                      {displayTime}
-                    </option>
-                  );
-                })}
+                {isLoadingSlots ? (
+                  <option value="">Loading available slots...</option>
+                ) : (
+                  availableSlots.map((time) => {
+                    const [hours, minutes] = time.split(':');
+                    const hour = parseInt(hours);
+                    const ampm = hour >= 12 ? 'PM' : 'AM';
+                    const displayHour = hour > 12 ? hour - 12 : hour === 0 ? 12 : hour;
+                    const displayTime = `${displayHour}:${minutes} ${ampm}`;
+                    
+                    return (
+                      <option key={time} value={time}>
+                        {displayTime}
+                      </option>
+                    );
+                  })
+                )}
               </select>
               {errors.time && (
                 <p className="mt-1 text-sm text-red-600">{errors.time.message}</p>
@@ -322,6 +370,11 @@ export default function BookAppointment() {
                     ? 'No available time slots for today. All times have passed. Please select another date.'
                     : 'No available time slots for this date. Please select another date.'
                   }
+                </p>
+              )}
+              {availableSlots.length > 0 && (
+                <p className="mt-1 text-sm text-gray-500">
+                  {isLoadingSlots ? 'Updating available slots...' : `${availableSlots.length} slots available`}
                 </p>
               )}
             </div>
@@ -346,7 +399,7 @@ export default function BookAppointment() {
             {/* Submit Button */}
             <button
               type="submit"
-              disabled={isSubmitting || availableSlots.length === 0}
+              disabled={isSubmitting || availableSlots.length === 0 || isLoadingSlots}
               className="w-full bg-purple-600 text-white py-3 px-4 rounded-md hover:bg-purple-700 focus:outline-none focus:ring-2 focus:ring-purple-500 focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
             >
               {isSubmitting ? 'Booking...' : 'Book Appointment'}

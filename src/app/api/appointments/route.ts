@@ -4,24 +4,62 @@ import connectDB from '@/lib/mongodb';
 import Appointment from '@/models/Appointment';
 import { appointmentSchema } from '@/lib/validations';
 import { sendCustomerConfirmation, sendAdminNotification } from '@/lib/email';
+import { zonedTimeToUtc } from 'date-fns-tz';
+
+// Central Timezone
+const CENTRAL_TIMEZONE = 'America/Chicago';
 
 export async function POST(request: NextRequest) {
   try {
     await connectDB();
     
     const body = await request.json();
-    
-    // Validate the request body
     const validatedData = appointmentSchema.parse(body);
     
-    // Check if the time slot is available
+    // Check if the requested time slot is still available
+    const requestedDate = new Date(validatedData.date);
+    const requestedTime = validatedData.time;
+    
+    console.log('POST: Requested date:', requestedDate);
+    console.log('POST: Requested time:', requestedTime);
+    
+    // Check if the requested date is in the past
+    const now = new Date();
+    const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+    if (requestedDate < today) {
+      console.log('POST: Date is in the past');
+      return NextResponse.json(
+        { error: 'Cannot book appointments for past dates.' },
+        { status: 400 }
+      );
+    }
+    
+    // If it's today, check if the requested time has passed
+    if (requestedDate.getTime() === today.getTime()) {
+      const [hours, minutes] = requestedTime.split(':').map(Number);
+      const currentHour = now.getHours();
+      const currentMinute = now.getMinutes();
+      
+      console.log('POST: Checking if time has passed. Requested:', hours + ':' + minutes, 'Current:', currentHour + ':' + currentMinute);
+      
+      if (hours < currentHour || (hours === currentHour && minutes <= currentMinute)) {
+        console.log('POST: Time has passed');
+        return NextResponse.json(
+          { error: 'Cannot book appointments for past time slots.' },
+          { status: 400 }
+        );
+      }
+    }
+    
+    // Check if the time slot is already booked
     const existingAppointment = await Appointment.findOne({
-      date: validatedData.date,
-      time: validatedData.time,
+      date: requestedDate,
+      time: requestedTime,
       status: { $nin: ['cancelled'] }
     });
     
     if (existingAppointment) {
+      console.log('POST: Time slot already booked');
       return NextResponse.json(
         { error: 'This time slot is already booked. Please select another time.' },
         { status: 400 }
@@ -89,15 +127,28 @@ export async function GET(request: NextRequest) {
     
     if (availableSlots === 'true' && date) {
       // Get all booked time slots for a specific date
-      const startOfDay = new Date(date);
-      startOfDay.setHours(0, 0, 0, 0);
-      const endOfDay = new Date(date);
-      endOfDay.setHours(23, 59, 59, 999);
+      console.log('API: Processing availableSlots request for date:', date);
+      console.log('API: Date type:', typeof date);
+      
+      // Parse the date string and convert to Central timezone
+      // The date string is in format "YYYY-MM-DD" and represents a date in Central time
+      const [year, month, day] = date.split('-').map(Number);
+      const centralDate = new Date(year, month - 1, day); // month is 0-indexed
+      
+      // Convert to UTC for MongoDB query
+      const startOfDayUTC = zonedTimeToUtc(centralDate, CENTRAL_TIMEZONE);
+      const endOfDayUTC = zonedTimeToUtc(new Date(year, month - 1, day, 23, 59, 59, 999), CENTRAL_TIMEZONE);
+      
+      console.log('API: Central date:', centralDate);
+      console.log('API: Start of day UTC:', startOfDayUTC);
+      console.log('API: End of day UTC:', endOfDayUTC);
       
       const bookedSlots = await Appointment.find({
-        date: { $gte: startOfDay, $lte: endOfDay },
+        date: { $gte: startOfDayUTC, $lte: endOfDayUTC },
         status: { $nin: ['cancelled'] }
       }).select('time status');
+      
+      console.log('API: Found booked slots:', bookedSlots);
       
       return NextResponse.json({ 
         bookedSlots: bookedSlots.map(slot => ({
