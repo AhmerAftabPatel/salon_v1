@@ -320,7 +320,7 @@ export default function BookAppointment() {
                 id="date"
                 {...register('date', { valueAsDate: true })}
                 min={formatCentralTime(getMinBookingDate(), 'yyyy-MM-dd')}
-                max={formatCentralTime(new Date(Date.now() + 24 * 60 * 60 * 1000), 'yyyy-MM-dd')}
+                max={formatCentralTime(new Date(getMinBookingDate().getTime() + 24 * 60 * 60 * 1000), 'yyyy-MM-dd')}
                 className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-purple-500 focus:border-purple-500 text-black"
               />
               {errors.date && (
